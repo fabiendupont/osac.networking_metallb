@@ -1,0 +1,18 @@
+---
+- name: Delete MetalLB resource
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - osac.service
+    - osac.networking_metallb
+
+  tasks:
+    - name: Display resource information
+      ansible.builtin.debug:
+        msg:
+          - "Resource: {{ osac_resource.kind }}/{{ osac_resource.metadata.name }}"
+
+    - name: Call the provider role
+      ansible.builtin.include_role:
+        name: osac.networking_metallb.public_ip
+        tasks_from: "delete_{{ osac_resource.kind | lower }}"
