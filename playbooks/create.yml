@@ -14,5 +14,4 @@
 
     - name: Call the provider role
       ansible.builtin.include_role:
-        name: osac.networking_metallb.public_ip
-        tasks_from: "create_{{ osac_resource.kind | lower }}"
+        name: "osac.networking_metallb.{{ osac_resource.kind | lower }}.create.main"

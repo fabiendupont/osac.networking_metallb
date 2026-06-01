@@ -1,0 +1,16 @@
+resource_type: PublicIPPool
+event: Create
+phase: main
+priority: 100
+failure_policy: Fail
+
+parameters:
+  - name: public_ip_pool
+    type: dict
+    required: true
+    description: PublicIPPool Kubernetes resource
+
+outputs:
+  - name: pool_name
+    type: string
+    description: Created IPAddressPool name
