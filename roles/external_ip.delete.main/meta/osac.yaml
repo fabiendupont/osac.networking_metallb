@@ -1,13 +1,13 @@
-resource_type: PublicIP
+resource_type: ExternalIP
 event: Delete
 phase: main
 priority: 100
 failure_policy: Fail
 
 parameters:
-  - name: public_ip
+  - name: external_ip
     type: dict
     required: true
-    description: PublicIP Kubernetes resource
+    description: ExternalIP Kubernetes resource
 
 outputs: []

@@ -1,14 +1,14 @@
-resource_type: PublicIPPool
+resource_type: ExternalIPPool
 event: Create
 phase: main
 priority: 100
 failure_policy: Fail
 
 parameters:
-  - name: public_ip_pool
+  - name: external_ip_pool
     type: dict
     required: true
-    description: PublicIPPool Kubernetes resource
+    description: ExternalIPPool Kubernetes resource
 
 outputs:
   - name: pool_name

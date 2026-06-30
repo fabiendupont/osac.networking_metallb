@@ -1,5 +1,5 @@
 ---
-# Delete MetalLB LoadBalancer Service for PublicIP
+# Delete MetalLB LoadBalancer Service for ExternalIP
 # Removes the parking Service that reserves the IP from the pool.
 
 - name: Include get remote cluster kubeconfig
@@ -7,14 +7,14 @@
     name: osac.service.common
     tasks_from: get_remote_cluster_kubeconfig
 
-- name: Extract PublicIP configuration
+- name: Extract ExternalIP configuration
   ansible.builtin.set_fact:
-    ip_name: "{{ public_ip.metadata.name }}"
+    ip_name: "{{ external_ip.metadata.name }}"
 
 - name: Display deletion information
   ansible.builtin.debug:
     msg:
-      - "Deleting LoadBalancer Service for PublicIP '{{ ip_name }}'"
+      - "Deleting LoadBalancer Service for ExternalIP '{{ ip_name }}'"
 
 - name: Delete LoadBalancer Service
   kubernetes.core.k8s:
@@ -22,7 +22,7 @@
     state: absent
     api_version: v1
     kind: Service
-    name: "osac-pip-{{ ip_name }}"
+    name: "osac-eip-{{ ip_name }}"
     namespace: metallb-system
     wait: true
     wait_timeout: 300
@@ -39,5 +39,5 @@
 - name: Display LoadBalancer Service deletion result
   ansible.builtin.debug:
     msg:
-      - "LoadBalancer Service 'osac-pip-{{ ip_name }}' deletion completed"
+      - "LoadBalancer Service 'osac-eip-{{ ip_name }}' deletion completed"
       - "Changed: {{ lb_service_delete_result.changed | default(false) }}"

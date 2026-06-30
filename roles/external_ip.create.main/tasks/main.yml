@@ -1,5 +1,5 @@
 ---
-# Create MetalLB LoadBalancer Service for PublicIP
+# Create MetalLB LoadBalancer Service for ExternalIP
 # Reserves an IP from the MetalLB pool via an empty-selector LB Service.
 # MetalLB writes the assigned IP to status.loadBalancer.ingress.
 
@@ -8,24 +8,24 @@
     name: osac.service.common
     tasks_from: get_remote_cluster_kubeconfig
 
-- name: Validate PublicIP annotations
+- name: Validate ExternalIP annotations
   ansible.builtin.assert:
     that:
-      - public_ip.metadata is defined
-      - public_ip.metadata.annotations is defined
-      - "'osac.openshift.io/publicippool-name' in public_ip.metadata.annotations"
-    fail_msg: "PublicIP metadata.annotations['osac.openshift.io/publicippool-name'] is required"
+      - external_ip.metadata is defined
+      - external_ip.metadata.annotations is defined
+      - "'osac.openshift.io/externalippool-name' in external_ip.metadata.annotations"
+    fail_msg: "ExternalIP metadata.annotations['osac.openshift.io/externalippool-name'] is required"
 
-- name: Extract PublicIP configuration
+- name: Extract ExternalIP configuration
   ansible.builtin.set_fact:
-    ip_name: "{{ public_ip.metadata.name }}"
+    ip_name: "{{ external_ip.metadata.name }}"
     ip_pool_name: >-
-      {{ public_ip.metadata.annotations['osac.openshift.io/publicippool-name'] }}
+      {{ external_ip.metadata.annotations['osac.openshift.io/externalippool-name'] }}
 
-- name: Display PublicIP information
+- name: Display ExternalIP information
   ansible.builtin.debug:
     msg:
-      - "Creating LoadBalancer Service for PublicIP '{{ ip_name }}'"
+      - "Creating LoadBalancer Service for ExternalIP '{{ ip_name }}'"
       - "Pool name (IPAddressPool): {{ ip_pool_name }}"
 
 # Empty-selector LB Service reserves an IP from the MetalLB pool without
@@ -39,12 +39,12 @@
       apiVersion: v1
       kind: Service
       metadata:
-        name: "osac-pip-{{ ip_name }}"
+        name: "osac-eip-{{ ip_name }}"
         namespace: metallb-system
         annotations:
           metallb.universe.tf/address-pool: "{{ ip_pool_name }}"
         labels:
-          osac.openshift.io/publicip: "{{ ip_name }}"
+          osac.openshift.io/externalip: "{{ ip_name }}"
           osac.io/managed-by: osac-fulfillment
       spec:
         type: LoadBalancer
@@ -62,7 +62,7 @@
 - name: Display LoadBalancer Service creation result
   ansible.builtin.debug:
     msg:
-      - "LoadBalancer Service 'osac-pip-{{ ip_name }}' created"
+      - "LoadBalancer Service 'osac-eip-{{ ip_name }}' created"
       - "Changed: {{ lb_service_result.changed | default(false) }}"
 
 - name: Wait for IP assignment
@@ -70,7 +70,7 @@
     kubeconfig: "{{ remote_cluster_kubeconfig | default(omit) }}"
     api_version: v1
     kind: Service
-    name: "osac-pip-{{ ip_name }}"
+    name: "osac-eip-{{ ip_name }}"
     namespace: metallb-system
   register: lb_service_info
   retries: 60
@@ -85,4 +85,4 @@
 
 - name: Display assigned IP
   ansible.builtin.debug:
-    msg: "PublicIP '{{ ip_name }}' assigned address: {{ assigned_ip }}"
+    msg: "ExternalIP '{{ ip_name }}' assigned address: {{ assigned_ip }}"

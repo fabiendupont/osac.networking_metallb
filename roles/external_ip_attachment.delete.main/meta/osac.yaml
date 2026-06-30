@@ -1,0 +1,16 @@
+resource_type: ExternalIPAttachment
+event: Delete
+phase: main
+priority: 100
+failure_policy: Fail
+
+parameters:
+  - name: external_ip
+    type: dict
+    required: true
+    description: >-
+      ExternalIP Kubernetes resource with annotations
+      osac.openshift.io/externalippool-name and
+      osac.openshift.io/externalip-target-namespace
+
+outputs: []

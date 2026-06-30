@@ -1,5 +1,5 @@
 ---
-# Delete MetalLB L2Advertisement and IPAddressPool for PublicIPPool
+# Delete MetalLB L2Advertisement and IPAddressPool for ExternalIPPool
 # 1. Deletes L2Advertisement first (must be removed before pool)
 # 2. Deletes IPAddressPool
 # Handles "not found" errors gracefully for both resources
@@ -9,14 +9,14 @@
     name: osac.service.common
     tasks_from: get_remote_cluster_kubeconfig
 
-- name: Extract PublicIPPool configuration
+- name: Extract ExternalIPPool configuration
   ansible.builtin.set_fact:
-    pool_name: "{{ public_ip_pool.metadata.name }}"
+    pool_name: "{{ external_ip_pool.metadata.name }}"
 
 - name: Display deletion information
   ansible.builtin.debug:
     msg:
-      - "Deleting MetalLB resources for PublicIPPool '{{ pool_name }}'"
+      - "Deleting MetalLB resources for ExternalIPPool '{{ pool_name }}'"
 
 - name: Delete L2Advertisement
   kubernetes.core.k8s:

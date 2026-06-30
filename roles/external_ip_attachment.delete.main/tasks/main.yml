@@ -1,5 +1,5 @@
 ---
-# Detach PublicIP from ComputeInstance
+# Detach ExternalIP from ComputeInstance
 # Removes the VM-namespace LoadBalancer Service, clears the public-ip-address
 # annotation from the ComputeInstance CR, and restores the parking Service in
 # metallb-system to preserve the IP reservation.
@@ -11,41 +11,41 @@
     name: osac.service.common
     tasks_from: get_remote_cluster_kubeconfig
 
-- name: Validate PublicIP fields and annotations
+- name: Validate ExternalIP fields and annotations
   ansible.builtin.assert:
     that:
-      - public_ip.metadata is defined
-      - public_ip.metadata.name is defined
-      - public_ip.metadata.name | length > 0
-      - public_ip.metadata.namespace is defined
-      - public_ip.metadata.namespace | length > 0
-      - public_ip.metadata.annotations is defined
-      - "'osac.openshift.io/publicippool-name' in public_ip.metadata.annotations"
-      - "'osac.openshift.io/publicip-target-namespace' in public_ip.metadata.annotations"
+      - external_ip.metadata is defined
+      - external_ip.metadata.name is defined
+      - external_ip.metadata.name | length > 0
+      - external_ip.metadata.namespace is defined
+      - external_ip.metadata.namespace | length > 0
+      - external_ip.metadata.annotations is defined
+      - "'osac.openshift.io/externalippool-name' in external_ip.metadata.annotations"
+      - "'osac.openshift.io/externalip-target-namespace' in external_ip.metadata.annotations"
     fail_msg: >-
-      PublicIP is missing required fields/annotations:
+      ExternalIP is missing required fields/annotations:
       metadata.name and metadata.namespace must be set,
-      and annotations osac.openshift.io/publicippool-name and
-      osac.openshift.io/publicip-target-namespace must both be present.
+      and annotations osac.openshift.io/externalippool-name and
+      osac.openshift.io/externalip-target-namespace must both be present.
 
-- name: Extract PublicIP detach configuration
+- name: Extract ExternalIP detach configuration
   ansible.builtin.set_fact:
-    public_ip_name: >-
-      {{ public_ip.metadata.annotations['osac.openshift.io/publicip-name']
-         | default(public_ip.metadata.name) }}
+    external_ip_name: >-
+      {{ external_ip.metadata.annotations['osac.openshift.io/externalip-name']
+         | default(external_ip.metadata.name) }}
     detach_vm_namespace: >-
-      {{ public_ip.metadata.annotations['osac.openshift.io/publicip-target-namespace'] }}
+      {{ external_ip.metadata.annotations['osac.openshift.io/externalip-target-namespace'] }}
     detach_pool_name: >-
-      {{ public_ip.metadata.annotations['osac.openshift.io/publicippool-name'] }}
+      {{ external_ip.metadata.annotations['osac.openshift.io/externalippool-name'] }}
     detach_compute_instance_uuid: >-
-      {{ ((public_ip.spec | default({})).computeInstance | default('')) | trim }}
+      {{ ((external_ip.spec | default({})).computeInstance | default('')) | trim }}
 
 - name: Fetch ComputeInstance CR
   kubernetes.core.k8s_info:
     kubeconfig: "{{ remote_cluster_kubeconfig | default(omit) }}"
     api_version: osac.openshift.io/v1alpha1
     kind: ComputeInstance
-    namespace: "{{ public_ip.metadata.namespace }}"
+    namespace: "{{ external_ip.metadata.namespace }}"
     label_selectors:
       - "osac.openshift.io/computeinstance-uuid={{ detach_compute_instance_uuid }}"
   register: detach_ci_lookup
@@ -64,15 +64,15 @@
     kubeconfig: "{{ remote_cluster_kubeconfig | default(omit) }}"
     api_version: v1
     kind: Service
-    name: "osac-pip-{{ public_ip_name }}-ingress"
+    name: "osac-eip-{{ external_ip_name }}-ingress"
     namespace: "{{ detach_vm_namespace }}"
   register: lb_service_info
 
 - name: Fail if VM namespace LB Service not found or IP not assigned
   ansible.builtin.fail:
     msg: >-
-      LoadBalancer Service 'osac-pip-{{ public_ip_name }}-ingress' not found in '{{ detach_vm_namespace }}'
-      or MetalLB has not assigned an IP. Run attach_public_ip first.
+      LoadBalancer Service 'osac-eip-{{ external_ip_name }}-ingress' not found in '{{ detach_vm_namespace }}'
+      or MetalLB has not assigned an IP. Run attach_external_ip first.
   when: >-
     lb_service_info.resources | length == 0 or
     lb_service_info.resources[0].status.loadBalancer.ingress | default([]) | length == 0
@@ -90,10 +90,10 @@
     - detach_compute_instance_name is not defined
     - detach_vm_name_from_svc | length > 0
 
-- name: Display PublicIP detach information
+- name: Display ExternalIP detach information
   ansible.builtin.debug:
     msg:
-      - "Detaching PublicIP '{{ public_ip_name }}'"
+      - "Detaching ExternalIP '{{ external_ip_name }}'"
       - "IP address: {{ detach_ip_address }} (read from VM namespace LB Service)"
       - "Pool: {{ detach_pool_name }}"
       - "VM namespace: {{ detach_vm_namespace }}"
@@ -102,7 +102,7 @@
 # Delete the LB Service, clear the annotation, and restore the placeholder atomically.
 # The rescue restores the LB Service if placeholder re-creation fails so the IP
 # is never left unparked without a reservation in metallb-system.
-- name: Detach PublicIP - remove LB Service, clear annotation, restore placeholder
+- name: Detach ExternalIP - remove LB Service, clear annotation, restore placeholder
   block:
     - name: Delete LoadBalancer Service from VM namespace
       kubernetes.core.k8s:
@@ -110,7 +110,7 @@
         state: absent
         api_version: v1
         kind: Service
-        name: "osac-pip-{{ public_ip_name }}-ingress"
+        name: "osac-eip-{{ external_ip_name }}-ingress"
         namespace: "{{ detach_vm_namespace }}"
         wait: true
         wait_timeout: 60
@@ -125,7 +125,7 @@
     - name: Display LB Service deletion result
       ansible.builtin.debug:
         msg:
-          - "LoadBalancer Service 'osac-pip-{{ public_ip_name }}-ingress' deleted from '{{ detach_vm_namespace }}'"
+          - "LoadBalancer Service 'osac-eip-{{ external_ip_name }}-ingress' deleted from '{{ detach_vm_namespace }}'"
           - "Changed: {{ lb_service_delete_result.changed | default(false) }}"
 
     - name: Re-create placeholder Service in metallb-system
@@ -137,10 +137,10 @@
           apiVersion: v1
           kind: Service
           metadata:
-            name: "osac-pip-{{ public_ip_name }}"
+            name: "osac-eip-{{ external_ip_name }}"
             namespace: metallb-system
             labels:
-              osac.openshift.io/publicip: "{{ public_ip_name }}"
+              osac.openshift.io/externalip: "{{ external_ip_name }}"
               osac.io/managed-by: osac-fulfillment
             annotations:
               metallb.universe.tf/address-pool: "{{ detach_pool_name }}"
@@ -161,7 +161,7 @@
     - name: Display placeholder Service creation result
       ansible.builtin.debug:
         msg:
-          - "Placeholder Service 'osac-pip-{{ public_ip_name }}' re-created in metallb-system"
+          - "Placeholder Service 'osac-eip-{{ external_ip_name }}' re-created in metallb-system"
           - "IP preserved: {{ detach_ip_address }}"
           - "Changed: {{ placeholder_service_result.changed | default(false) }}"
 
@@ -175,10 +175,10 @@
           apiVersion: v1
           kind: Service
           metadata:
-            name: "osac-pip-{{ public_ip_name }}-ingress"
+            name: "osac-eip-{{ external_ip_name }}-ingress"
             namespace: "{{ detach_vm_namespace }}"
             labels:
-              osac.openshift.io/publicip: "{{ public_ip_name }}"
+              osac.openshift.io/externalip: "{{ external_ip_name }}"
               osac.io/managed-by: osac-fulfillment
             annotations:
               metallb.universe.tf/address-pool: "{{ detach_pool_name }}"
@@ -203,8 +203,8 @@
     - name: Fail after attempted rollback of detach operation
       ansible.builtin.fail:
         msg: >-
-          Detach of PublicIP '{{ public_ip_name }}' failed; the LoadBalancer Service
-          'osac-pip-{{ public_ip_name }}-ingress' in '{{ detach_vm_namespace }}' has been restored
+          Detach of ExternalIP '{{ external_ip_name }}' failed; the LoadBalancer Service
+          'osac-eip-{{ external_ip_name }}-ingress' in '{{ detach_vm_namespace }}' has been restored
           if it had been deleted. Check the preceding error for details.
 
 # Remove the public-ip-address annotation from the ComputeInstance CR.
@@ -214,7 +214,7 @@
     api_version: osac.openshift.io/v1alpha1
     kind: ComputeInstance
     name: "{{ detach_compute_instance_name }}"
-    namespace: "{{ public_ip.metadata.namespace }}"
+    namespace: "{{ external_ip.metadata.namespace }}"
   register: ci_info
   when: detach_compute_instance_name is defined
 
@@ -224,7 +224,7 @@
     api_version: osac.openshift.io/v1alpha1
     kind: ComputeInstance
     name: "{{ detach_compute_instance_name }}"
-    namespace: "{{ public_ip.metadata.namespace }}"
+    namespace: "{{ external_ip.metadata.namespace }}"
     patch:
       - op: remove
         path: /metadata/annotations/osac.openshift.io~1public-ip-address

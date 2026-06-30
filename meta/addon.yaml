@@ -7,9 +7,9 @@ dependencies:
   osac_core: ">=0.1.0"
 
 resource_types:
-  - name: PublicIPPool
+  - name: ExternalIPPool
     scope: platform
-  - name: PublicIP
+  - name: ExternalIP
     scope: tenant
-  - name: PublicIPAttachment
+  - name: ExternalIPAttachment
     scope: tenant

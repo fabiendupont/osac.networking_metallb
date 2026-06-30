@@ -1,5 +1,5 @@
 ---
-# Create MetalLB IPAddressPool and L2Advertisement for PublicIPPool
+# Create MetalLB IPAddressPool and L2Advertisement for ExternalIPPool
 # 1. Creates IPAddressPool with autoAssign: false, avoidBuggyIPs: true, and addresses from CR spec.cidrs
 # 2. Creates L2Advertisement referencing the IPAddressPool by name
 
@@ -8,15 +8,15 @@
     name: osac.service.common
     tasks_from: get_remote_cluster_kubeconfig
 
-- name: Extract PublicIPPool configuration
+- name: Extract ExternalIPPool configuration
   ansible.builtin.set_fact:
-    pool_name: "{{ public_ip_pool.metadata.name }}"
-    pool_cidrs: "{{ public_ip_pool.spec.cidrs }}"
+    pool_name: "{{ external_ip_pool.metadata.name }}"
+    pool_cidrs: "{{ external_ip_pool.spec.cidrs }}"
 
-- name: Display PublicIPPool information
+- name: Display ExternalIPPool information
   ansible.builtin.debug:
     msg:
-      - "Creating MetalLB resources for PublicIPPool '{{ pool_name }}'"
+      - "Creating MetalLB resources for ExternalIPPool '{{ pool_name }}'"
       - "CIDRs: {{ pool_cidrs }}"
 
 - name: Create IPAddressPool
@@ -30,7 +30,7 @@
         name: "{{ pool_name }}"
         namespace: metallb-system
         labels:
-          osac.openshift.io/publicippool: "{{ pool_name }}"
+          osac.openshift.io/externalippool: "{{ pool_name }}"
           osac.io/managed-by: osac-fulfillment
       spec:
         autoAssign: false
@@ -61,7 +61,7 @@
         name: "{{ pool_name }}-l2adv"
         namespace: metallb-system
         labels:
-          osac.openshift.io/publicippool: "{{ pool_name }}"
+          osac.openshift.io/externalippool: "{{ pool_name }}"
           osac.io/managed-by: osac-fulfillment
       spec:
         ipAddressPools:
